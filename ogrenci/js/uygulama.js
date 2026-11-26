@@ -251,11 +251,11 @@ function patikaEkrani(id) {
   const nokta = k => [k % 2 ? 66 : 32, 13 + k * 80 / (n - 1)];
   const yol = Array.from({length: n}, (_, k) => nokta(k)).map(([x, y], k, a) => k ? `C${a[k - 1][0]} ${(a[k - 1][1] + y) / 2} ${x} ${(a[k - 1][1] + y) / 2} ${x} ${y}` : `M${x} ${y}`).join(' ');
   const hedef = d => { const ilk = d.adim.findIndex(x => !x); return `#durak/${b.id}/${d.no}/${ADIMLAR[Math.max(0, ilk)].k}`; };
-  const duraklarHtml = ds.map((d, k) => { const [x, y] = nokta(k), durum = d.bitti ? 'bitti' : acik(k) ? 'acik' : 'kilit', tamam = d.adim.filter(Boolean).length;
-    return `<div class="izDurak ${durum} ${x > 50 ? 'bati' : 'dogu'}" style="--x:${x}%;--y:${y}%">
+  const duraklarHtml = ds.map((d, k) => { const [x, y] = nokta(k), durum = d.bitti ? 'bitti' : acik(k) ? 'acik' : 'kilit', tamam = d.adim.filter(Boolean).length, yon = x > 50 ? 'bati' : 'dogu';
+    return `<div class="izDurak ${durum} ${yon}" style="--x:${x}%;--y:${y}%">
       <a class="izDugum" ${durum !== 'kilit' ? `href="${hedef(d)}"` : 'aria-disabled="true"'} aria-label="Stop ${d.no}: ${esc(d.ad)}, ${durum === 'kilit' ? 'locked' : durum === 'bitti' ? 'completed' : tamam + '/5 steps'}">${durum === 'kilit' ? '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>' : `<b>${d.no}</b>`}${durum === 'bitti' ? '<i class="izTik" aria-hidden="true">✓</i>' : ''}</a>
-      <span class="izEtiket"><strong>${esc(d.ad)}</strong><small>${durum === 'bitti' ? 'Completed' : durum === 'kilit' ? 'Locked' : tamam ? tamam + '/5 steps' : 'Pages ' + (d.bas + 1) + '–' + (d.son + 1)}</small></span>
-      ${k === sira ? `<span class="izBayrak">${tamam ? 'Continue' : 'Start'}</span><img class="izMino" src="../img/mino_selam.webp" alt="">` : ''}</div>`; }).join('');
+      ${k === sira ? `<span class="izBayrak">${tamam ? 'Continue' : 'Start'}</span><img class="izMino" src="../img/mino_selam.webp" alt="">` : ''}</div>
+    <span class="izEtiketDis ${durum} ${yon}" style="--y:${y}%"><strong>${esc(d.ad)}</strong><small>${durum === 'bitti' ? 'Completed' : durum === 'kilit' ? 'Locked' : tamam ? tamam + '/5 steps' : 'Pages ' + (d.bas + 1) + '–' + (d.son + 1)}</small></span>`; }).join('');
   const [sx, sy] = nokta(n - 1), sonraki = hepsi ? null : ds[sira];
   ekran.innerHTML = `<div class="bas"><div><h1>My Trail</h1></div><a class="izKitapSec" href="#kitaplar">Pick a book ↗</a></div>
   <section class="izKart"><div class="izBaslik"><div><p class="ust">Book trail · Grade ${aktifSinif()}</p><h2>${esc(b.ad)}</h2><p class="izIpucu">At every stop, first predict, then read, then play and write.</p></div><span class="izSkor" aria-label="${biten} ${cogul(biten, 'stop')} completed">${biten}/${ds.length}</span></div>
@@ -271,6 +271,16 @@ function durakAdim(id, no, adim) {
   if (!d || !c || (d.no > 1 && !ds[d.no - 2].bitti)) { location.hash = `patika/${b.id}`; return; }
   const ai = Math.max(0, ADIMLAR.findIndex(x => x.k === adim)), a = ADIMLAR[ai], sonraki = ADIMLAR[ai + 1];
   const acikMi = k => k === 0 || ds[k - 1].bitti;
+  // Bir adım bitmeden sonraki açılmaz: doğrudan adrese gidilirse ilk bitmemiş adıma dönülür.
+  const adimAcik = i => i === 0 || d.adim[i] || d.adim[i - 1];
+  if (!adimAcik(ai)) { location.hash = `durak/${b.id}/${d.no}/${ADIMLAR[d.adim.findIndex(x => !x)].k}`; return; }
+  // Puan: ilk denemede 1, ikincide 0.5, sonrası 0 (puanHesap oyunlar.js'te). İlk tamamlanan sonuç saklanır.
+  const puanKey = k => `okumino-web-puan/${b.id}/${d.id}/${k}`;
+  const puanOku = k => { try { return JSON.parse(yerel(puanKey(k)) || 'null'); } catch (e) { return null; } };
+  const puanKaydet = (k, puan, enCok, deneme) => { const eski = puanOku(k); if (!eski) yerel(puanKey(k), JSON.stringify({puan, enCok, deneme, t: Date.now()})); return eski || {puan, enCok, deneme}; };
+  const durakPuan = () => { const x = ['kelime', 'anla'].map(puanOku); return {puan: x.reduce((t, y) => t + (y ? y.puan : 0), 0), enCok: 4, bitti: x.every(Boolean)}; };
+  const puanKutu = (r, ad) => `<div class="puanKutu"><b>${puanYaz(r.puan)} / ${r.enCok}</b><span>${ad} score · ${r.deneme} ${r.deneme === 1 ? 'try' : 'tries'}</span></div>`;
+  const durakKutu = () => { const t = durakPuan(); return t.bitti ? `<div class="puanKutu toplam"><b>${puanYaz(t.puan)} / ${t.enCok}</b><span>Stop ${d.no} total score</span></div>` : ''; };
   const tamamla = mesaj => { const yeni = Journal.record(b.id, 'task', `${d.id}-${a.k}`, `${a.ad} · ${b.ad} stop ${d.no}`); if (yeni) damlaKazan(2, mesaj); };
   const ileriLink = sonraki ? `#durak/${b.id}/${d.no}/${sonraki.k}` : (ds[d.no] ? `#durak/${b.id}/${d.no + 1}/tahmin` : `#patika/${b.id}`);
   const ileriAd = sonraki ? `${sonraki.ad} →` : ds[d.no] ? `Go to stop ${d.no + 1} →` : 'Back to the trail map →';
@@ -279,7 +289,7 @@ function durakAdim(id, no, adim) {
   document.body.classList.add('tamEkran');
   ekran.innerHTML = `<div class="oyna">
    <header class="oyUst"><a class="oyKapat" href="#patika/${b.id}" aria-label="Back to the trail map">✕</a><span class="oyCip">Activities ${d.adim.filter(Boolean).length}/5 <i>✦</i></span>
-    <ol class="oyNoktalar">${ADIMLAR.map((x, i) => `<li><a href="#durak/${b.id}/${d.no}/${x.k}" class="${d.adim[i] ? 'bitti' : ''}${i === ai ? ' su' : ''}" title="${x.ad}" aria-label="${i + 1}. ${x.ad}${d.adim[i] ? ', done' : ''}">${i + 1}</a></li>`).join('')}</ol>
+    <ol class="oyNoktalar">${ADIMLAR.map((x, i) => `<li>${adimAcik(i) ? `<a href="#durak/${b.id}/${d.no}/${x.k}" class="${d.adim[i] ? 'bitti' : ''}${i === ai ? ' su' : ''}" title="${x.ad}" aria-label="${i + 1}. ${x.ad}${d.adim[i] ? ', done' : ''}">${i + 1}</a>` : `<span class="kilitli" title="${x.ad}: finish the step before" aria-label="${i + 1}. ${x.ad}, locked">${i + 1}</span>`}</li>`).join('')}</ol>
     <div class="oyBaslik"><div><b>Stop ${d.no}: ${esc(d.ad)}</b><span class="oyRozet">${a.ad}</span><span class="oyDamla">${ikon('damla')}${a.k === 'oku' ? '+1 / page' : '+2 drops'}</span></div><div class="oyCubuk"><i style="width:${(biten + d.adim.filter(Boolean).length / 5) / ds.length * 100}%"></i></div><small>Trail ${biten} / ${ds.length}</small></div>
     <button type="button" class="oyYolculuk">${ikon('kitap')}My Reading Journey</button></header>
    <section class="oyGovde"><div class="oySekme" role="tablist"><button type="button" role="tab" aria-selected="true" data-s="e">${a.k === 'oku' ? 'Read' : 'Activity'}</button><button type="button" role="tab" aria-selected="false" data-s="i">Hint</button></div><div class="oyIcerik"></div><div class="oyIpucu" hidden></div></section>
@@ -287,7 +297,7 @@ function durakAdim(id, no, adim) {
     <div class="yIlerleme"><span class="cubuk"><i style="width:${biten / ds.length * 100}%"></i></span><small>${biten}/${ds.length} stops</small></div>
     <ol class="yListe">${ds.map((x, k) => { const durum = x.bitti ? 'bitti' : acikMi(k) ? 'acik' : 'kilit', su = x.no === d.no;
       return `<li class="${durum}${su ? ' su' : ''}"><div class="ySatir"><span class="yNo">${x.bitti ? '✓' : durum === 'kilit' ? '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>' : x.no}</span><span><b>Stop ${x.no}: ${esc(x.ad)}</b><small>${su ? 'You are here' : durum === 'kilit' ? 'Opens when you finish the stop before' : durum === 'bitti' ? 'Completed' : 'Pages ' + (x.bas + 1) + '–' + (x.son + 1)}</small></span>${durum !== 'kilit' && !su ? `<a href="#durak/${b.id}/${x.no}/tahmin" aria-label="Go to stop ${x.no}">→</a>` : ''}</div>
-       ${su ? `<ol class="yAdimlar">${ADIMLAR.map((y, i) => `<li class="${i === ai ? 'su' : ''}${x.adim[i] ? ' bitti' : ''}"><a href="#durak/${b.id}/${x.no}/${y.k}"><span>${x.adim[i] ? '✓' : i + 1}</span>${y.ad}<em>${y.faz}</em></a></li>`).join('')}</ol>` : ''}</li>`; }).join('')}</ol>
+       ${su ? `<ol class="yAdimlar">${ADIMLAR.map((y, i) => `<li class="${i === ai ? 'su' : ''}${x.adim[i] ? ' bitti' : ''}${adimAcik(i) ? '' : ' kilit'}">${adimAcik(i) ? `<a href="#durak/${b.id}/${x.no}/${y.k}">` : '<a aria-disabled="true">'}<span>${x.adim[i] ? '✓' : i + 1}</span>${y.ad}<em>${y.faz}</em></a></li>`).join('')}</ol>` : ''}</li>`; }).join('')}</ol>
     <a class="yDon" href="#patika/${b.id}">Back to the trail map →</a></aside><div class="yPerde" hidden></div></div>`;
   const alan = $('.oyIcerik'), ipucu = $('.oyIpucu'), panel = $('.yolculuk'), perde = $('.yPerde');
   const paneliAc = ac => { panel.hidden = !ac; perde.hidden = !ac; };
@@ -319,27 +329,29 @@ function durakAdim(id, no, adim) {
       $('.geriBildirim', alan).innerHTML = `<img src="../img/mino_selam.webp" alt=""><p>${okundu ? (btn.textContent === sec[dogru] ? 'Your guess matches the story!' : `In the story: <b>${esc(sec[dogru])}</b>. Guessing is part of reading too.`) : "I wrote down your guess! Now let's read and check."}</p>${ileri}`; });
   } else if (a.k === 'kelime') {
     const tahmin = yerel(tahminKey), sol = karistir(c.k.map((x, i) => [x[0], i])), sag = karistir(c.k.map((x, i) => [x[1], i]));
-    let secili = null; const es = new Set();
+    let secili = null, kazanc = 0, deneme = 0; const es = new Set(), yanlisSay = {};
     alan.innerHTML = `<div class="oyKart">${tahmin && d.adim[1] ? `<p class="tahminSonuc">${tahmin === c.t[1][c.t[2]] ? '✓ Your guess was right: ' : 'Your guess: ' + esc(tahmin) + ' · In the story: '}<b>${esc(c.t[1][c.t[2]])}</b></p>` : ''}<h2 class="soruMetni">Tap a word first, then tap its meaning.</h2>
       <div class="eslestir"><div>${sol.map(([w, i]) => `<button type="button" class="secenek kelimeD" data-i="${i}">${esc(w)}</button>`).join('')}</div><div>${sag.map(([m, i]) => `<button type="button" class="secenek anlamD" data-i="${i}">${esc(m)}</button>`).join('')}</div></div><div class="geriBildirim" role="status" aria-live="polite"></div></div>`;
     const fb = $('.geriBildirim', alan);
     $$('.kelimeD', alan).forEach(x => x.onclick = () => { if (es.has(x.dataset.i)) return; $$('.kelimeD', alan).forEach(y => y.classList.remove('secildi')); x.classList.add('secildi'); secili = x.dataset.i; fb.innerHTML = ''; });
     $$('.anlamD', alan).forEach(x => x.onclick = () => { if (secili === null) { fb.innerHTML = '<p>First pick a word on the left.</p>'; return; }
-      if (x.dataset.i === secili) { es.add(secili); $$(`[data-i="${secili}"]`, alan).forEach(y => { y.classList.remove('secildi'); y.classList.add('dogru'); y.disabled = true; }); secili = null;
-        fb.innerHTML = es.size === 3 ? `<img src="../img/mino_selam.webp" alt=""><p>Great! You found all three words.</p>${ileri}` : '<p>Correct match!</p>'; if (es.size === 3) tamamla('You finished the word game'); }
-      else { x.classList.add('yanlis'); setTimeout(() => x.classList.remove('yanlis'), 450); fb.innerHTML = '<p>Try again. You can look at the Hint tab.</p>'; } });
+      deneme++;
+      if (x.dataset.i === secili) { kazanc += puanHesap(yanlisSay[secili] || 0); es.add(secili); $$(`[data-i="${secili}"]`, alan).forEach(y => { y.classList.remove('secildi'); y.classList.add('dogru'); y.disabled = true; }); secili = null;
+        if (es.size === 3) { const r = puanKaydet('kelime', kazanc, 3, deneme); tamamla('You finished the word game'); fb.innerHTML = `<img src="../img/mino_selam.webp" alt=""><p>Great! You found all three words.</p>${puanKutu(r, 'Word game')}${ileri}`; } else fb.innerHTML = '<p>Correct match!</p>'; }
+      else { yanlisSay[secili] = (yanlisSay[secili] || 0) + 1; x.classList.add('yanlis'); setTimeout(() => x.classList.remove('yanlis'), 450); fb.innerHTML = `<p>Try again. You can look at the Hint tab.${yanlisSay[secili] === 1 ? ' <small>(This word is now worth ½ point.)</small>' : ' <small>(No points for this word now, but you still need the right meaning.)</small>'}</p>`; } });
   } else if (a.k === 'anla') {
     const [soru, sec, dogru] = c.a;
     alan.innerHTML = `<div class="oyKart"><h2 class="soruMetni">${esc(soru)}</h2><div class="secenekler">${karistir(sec).map(x => `<button type="button" class="secenek">${esc(x)}</button>`).join('')}</div><div class="geriBildirim" role="status" aria-live="polite"></div></div>`;
+    let yanlis = 0;
     $$('.secenek', alan).forEach(btn => btn.onclick = () => {
-      if (btn.textContent === sec[dogru]) { btn.classList.add('dogru'); $$('.secenek', alan).forEach(x => x.disabled = true); tamamla('You understood what you read'); $('.geriBildirim', alan).innerHTML = `<img src="../img/mino_selam.webp" alt=""><p>Correct! You read very carefully.</p>${ileri}`; }
-      else { btn.classList.add('yanlis'); btn.disabled = true; $('.geriBildirim', alan).innerHTML = '<p>Think back to the story and try again. The Hint tab can help.</p>'; } });
+      if (btn.textContent === sec[dogru]) { btn.classList.add('dogru'); $$('.secenek', alan).forEach(x => x.disabled = true); const r = puanKaydet('anla', puanHesap(yanlis), 1, yanlis + 1); tamamla('You understood what you read'); $('.geriBildirim', alan).innerHTML = `<img src="../img/mino_selam.webp" alt=""><p>${yanlis ? 'Correct!' : 'Correct on the first try! You read very carefully.'}</p>${puanKutu(r, 'Understand')}${ileri}`; }
+      else { yanlis++; btn.classList.add('yanlis'); btn.disabled = true; $('.geriBildirim', alan).innerHTML = `<p>Think back to the story and try again. The Hint tab can help.${yanlis === 1 ? ' <small>(Now worth ½ point.)</small>' : ' <small>(No points for this one now, but you still need the right answer.)</small>'}</p>`; } });
   } else {
     const key = `okumino-web-yaz/${b.id}/${d.id}`;
     alan.innerHTML = `<div class="oyKart"><h2 class="soruMetni">${esc(c.y)}</h2><label class="yazAlani"><span class="gizli">Your answer</span><textarea rows="4" maxlength="400" placeholder="Write here…">${esc(yerel(key) || '')}</textarea></label><p class="ipucu">What you write stays only on this device.</p><div class="geriBildirim" role="status" aria-live="polite"><button type="button" class="dugme turuncu" data-kaydet>Send →</button></div></div>`;
     $('[data-kaydet]', alan).onclick = () => { const v = $('textarea', alan).value.trim();
       if (v.split(/\s+/).filter(Boolean).length < 3) { $('.geriBildirim', alan).insertAdjacentHTML('afterbegin', '<p class="kisa">Write a sentence with at least three words.</p>'); return; }
-      yerel(key, v); tamamla('You wrote your own sentence'); $('.geriBildirim', alan).innerHTML = `<img src="../img/mino_selam.webp" alt=""><p>I saved your sentence.${duraklar(b)[d.no - 1].bitti ? ' This stop is done!' : ''}</p>${ileri}`; };
+      yerel(key, v); tamamla('You wrote your own sentence'); $('.geriBildirim', alan).innerHTML = `<img src="../img/mino_selam.webp" alt=""><p>I saved your sentence.${duraklar(b)[d.no - 1].bitti ? ' This stop is done!' : ''}</p>${durakKutu()}${ileri}`; };
   }
 }
 
@@ -382,8 +394,8 @@ function profilEkrani(sekme) {
   } else hesapEkrani(ust, h);
 }
 function hesapEkrani(ust, h) {
-  const bilgi = hesapBolme === 'bilgi';
-  ekran.innerHTML = ust + `<article class="hesap"><div class="bolmeSec" role="tablist"><button type="button" role="tab" data-b="bilgi" aria-selected="${bilgi}">Profile details</button><button type="button" role="tab" data-b="sifre" aria-selected="${!bilgi}">Change password</button></div><form novalidate></form><p class="formNot" role="status" aria-live="polite"></p></article>`;
+  const bilgi = true; // şifre yok: Hesabım yalnız profil bilgileri
+  ekran.innerHTML = ust + `<article class="hesap"><form novalidate></form><p class="formNot" role="status" aria-live="polite"></p></article>`;
   $$('[data-b]').forEach(d => d.onclick = () => { hesapBolme = d.dataset.b; profilEkrani('hesap'); });
   const f = $('.hesap form'), not = $('.formNot'), soyle = (m, kotu) => { not.textContent = m; not.classList.toggle('kotu', !!kotu); };
   if (bilgi) {

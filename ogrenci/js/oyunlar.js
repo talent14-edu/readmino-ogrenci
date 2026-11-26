@@ -15,10 +15,13 @@ function oyunlarEkrani() {
   const sv = seviyeAdi();
   ekran.innerHTML = `<div class="bas"><div><h1>Game Cabinet</h1><p class="alt">Games that make your reading understanding stronger · <b>${SEVIYE[sv]}</b> level</p></div></div>
   <ul class="oyunIzgara">${OYUNLAR.map(o => { const bitti = Journal.has('oyun-dolabi', 'task', `${o.tur}-${sv}`);
-    return `<li><a class="oyunKart renk-${o.renk}" href="#oyun/${o.tur}">${ikon(o.ik, 'oyunIk')}<span><b>${o.ad}</b><small>${o.aciklama}</small></span><em>${o.beceri}${bitti ? ' · ✓ done' : ''}</em><span class="dugme ana">Play →</span></a></li>`; }).join('')}</ul>`;
+    return `<li><a class="oyunKart renk-${o.renk}" href="#oyun/${o.tur}" aria-label="${esc(o.ad)}${bitti ? ', done' : ''}">${ikon(o.ik, 'oyunIk')}<b>${o.ad}</b><span class="dugme ana">Play →</span></a></li>`; }).join('')}</ul>`;
 }
 
 let oyun = null;
+// Puan: ilk denemede 1, ikinci denemede 0.5, sonrası 0. Doğru cevap verilmeden geçilmez.
+const puanHesap = yanlis => Math.max(0, 1 - yanlis * 0.5);
+const puanYaz = n => String(Math.round(n * 10) / 10);
 function oyunEkrani(tur) {
   const o = OYUNLAR.find(x => x.tur === tur) || OYUNLAR[0], sv = seviyeAdi(), veri = OYUN_ICERIK[o.tur][sv];
   oyun = {o, sv, i: 0, puan: 0, top: 0, maddeler: o.tur === 'yol' ? [] : karistir(veri), yol: o.tur === 'yol' ? veri : null};
@@ -45,11 +48,13 @@ function maddeCiz() {
   alan.innerHTML = `${ilerleme()}<blockquote class="baglam buyuk">${o.tur === 'kelime' ? metin : esc(metin)}</blockquote><h2 class="soruMetni">${esc(soru)}</h2>
    <div class="secenekler">${karistir(secenek).map(x => `<button type="button" class="secenek">${esc(x)}</button>`).join('')}</div><div class="geriBildirim" role="status" aria-live="polite"></div>`;
   oyun.top = maddeler.length;
+  let deneme = 0;
   $$('.secenek', alan).forEach(btn => btn.onclick = () => {
-    const ok = btn.textContent === dogru;
-    $$('.secenek', alan).forEach(x => { x.disabled = true; if (x.textContent === dogru) x.classList.add('dogru'); });
-    if (ok) oyun.puan++; else btn.classList.add('yanlis');
-    $('.geriBildirim', alan).innerHTML = `<img src="../img/mino_selam.webp" alt=""><p>${ok ? ['Well done!', 'Spot on!', 'Great reading!'][i % 3] : `The right answer: <b>${esc(dogru)}</b>`}${aciklama ? `<small class="ipucuMetni">Hint: ${esc(aciklama)}</small>` : ''}</p>${sonraki()}`;
+    if (btn.textContent !== dogru) { deneme++; oyun.deneme = (oyun.deneme || 0) + 1; btn.classList.add('yanlis'); btn.disabled = true;
+      $('.geriBildirim', alan).innerHTML = `<p>Not quite. Read it again and try another answer.${deneme === 1 ? ' <small>(Now worth ½ point.)</small>' : ' <small>(No points for this one now, but you still need the right answer.)</small>'}</p>`; return; }
+    const kazanc = puanHesap(deneme); oyun.puan += kazanc; oyun.deneme = (oyun.deneme || 0) + 1;
+    btn.classList.add('dogru'); $$('.secenek', alan).forEach(x => x.disabled = true);
+    $('.geriBildirim', alan).innerHTML = `<img src="../img/mino_selam.webp" alt=""><p>${deneme ? 'Right answer!' : ['Well done!', 'Spot on!', 'Great reading!'][i % 3]} <b class="puanEtiket">+${puanYaz(kazanc)} ${kazanc === 1 ? 'point' : 'points'}</b>${aciklama ? `<small class="ipucuMetni">Hint: ${esc(aciklama)}</small>` : ''}</p>${sonraki()}`;
     ileriBagla(alan);
   });
 }
@@ -63,10 +68,10 @@ function siraCiz(alan, cumleler) {
   const geri = $('[data-geri]', alan); if (geri) geri.onclick = () => { sec.pop(); siraCiz(alan, cumleler); };
   if (bitti) {
     const tam = sec.every((k, n) => k === n); oyun.top = oyun.maddeler.length;
-    if (tam && !oyun.denendi) oyun.puan++;
-    $('.geriBildirim', alan).innerHTML = `<img src="../img/mino_selam.webp" alt=""><p>${tam ? 'All in the right order!' : 'Green ones are in the right place; red ones need to move.'}</p>${tam ? sonraki() : '<button type="button" class="dugme" data-tekrar>Try again</button>'}`;
-    const t = $('[data-tekrar]', alan); if (t) t.onclick = () => { oyun.denendi = true; oyun.sec = []; siraCiz(alan, cumleler); };
-    const ileri = $('[data-ileri]', alan); if (ileri) ileri.onclick = () => { oyun.i++; oyun.karisik = null; oyun.denendi = false; maddeCiz(); };
+    if (tam && !oyun.sayildi) { const k = puanHesap(oyun.siraYanlis || 0); oyun.puan += k; oyun.deneme = (oyun.deneme || 0) + (oyun.siraYanlis || 0) + 1; oyun.sayildi = true; oyun.sonKazanc = k; }
+    $('.geriBildirim', alan).innerHTML = `<img src="../img/mino_selam.webp" alt=""><p>${tam ? `All in the right order! <b class="puanEtiket">+${puanYaz(oyun.sonKazanc)} ${oyun.sonKazanc === 1 ? 'point' : 'points'}</b>` : `Green ones are in the right place; red ones need to move.${(oyun.siraYanlis || 0) === 0 ? ' <small>(Next try is worth ½ point.)</small>' : ' <small>(No points for this one now, but you still need the right order.)</small>'}`}</p>${tam ? sonraki() : '<button type="button" class="dugme" data-tekrar>Try again</button>'}`;
+    const t = $('[data-tekrar]', alan); if (t) t.onclick = () => { oyun.siraYanlis = (oyun.siraYanlis || 0) + 1; oyun.sec = []; siraCiz(alan, cumleler); };
+    const ileri = $('[data-ileri]', alan); if (ileri) ileri.onclick = () => { oyun.i++; oyun.karisik = null; oyun.siraYanlis = 0; oyun.sayildi = false; maddeCiz(); };
   }
 }
 // Ekran okuyucu için ikon dosya adlarının İngilizce karşılıkları (dosya adları değişmez).
@@ -78,8 +83,8 @@ function yonergeCiz(alan, [izgara, yonerge, dogru]) {
   let deneme = 0;
   $$('[data-k]', alan).forEach(btn => btn.onclick = () => {
     if (Number(btn.dataset.k) === dogru) {
-      btn.classList.add('dogru'); $$('[data-k]', alan).forEach(x => x.disabled = true); if (!deneme) oyun.puan++;
-      $('.geriBildirim', alan).innerHTML = `<img src="../img/mino_selam.webp" alt=""><p>${deneme ? 'You found it! Reading the instruction step by step worked.' : 'You found it on the first try!'}</p>${sonraki()}`; ileriBagla(alan);
+      btn.classList.add('dogru'); $$('[data-k]', alan).forEach(x => x.disabled = true); oyun.puan += puanHesap(deneme); oyun.deneme = (oyun.deneme || 0) + deneme + 1;
+      $('.geriBildirim', alan).innerHTML = `<img src="../img/mino_selam.webp" alt=""><p>${deneme ? 'You found it! Reading the instruction step by step worked.' : 'You found it on the first try!'} <b class="puanEtiket">+${puanYaz(puanHesap(deneme))} ${puanHesap(deneme) === 1 ? 'point' : 'points'}</b></p>${sonraki()}`; ileriBagla(alan);
     } else { deneme++; btn.classList.add('yanlis'); setTimeout(() => btn.classList.remove('yanlis'), 450); $('.geriBildirim', alan).innerHTML = '<p>Not this one. Read the instruction again, word by word.</p>'; }
   });
 }
@@ -90,11 +95,13 @@ function yolCiz(dugum) {
   if (dugum === 's') {
     const [soru, sec] = y.soru;
     alan.innerHTML = `<p class="yolMetin son">${esc(metin)}</p><h2 class="soruMetni">${esc(soru)}</h2><div class="secenekler">${karistir(sec).map(x => `<button type="button" class="secenek">${esc(x)}</button>`).join('')}</div><div class="geriBildirim" role="status" aria-live="polite"></div>`;
+    let deneme = 0;
     $$('.secenek', alan).forEach(btn => btn.onclick = () => {
-      const ok = btn.textContent === sec[0];
-      $$('.secenek', alan).forEach(x => { x.disabled = true; if (x.textContent === sec[0]) x.classList.add('dogru'); }); if (!ok) btn.classList.add('yanlis');
-      oyun.puan = (ok ? 1 : 0) + Math.max(0, 2 - oyun.yanlis); oyun.top = 3;
-      $('.geriBildirim', alan).innerHTML = `<img src="../img/mino_selam.webp" alt=""><p>${ok ? 'Correct!' : `The right answer: <b>${esc(sec[0])}</b>`}</p><button type="button" class="dugme ana" data-son>See your score →</button>`;
+      if (btn.textContent !== sec[0]) { deneme++; btn.classList.add('yanlis'); btn.disabled = true;
+        $('.geriBildirim', alan).innerHTML = `<p>Not quite. Think about the story and try another answer.${deneme === 1 ? ' <small>(Now worth ½ point.)</small>' : ' <small>(No points for this one now, but you still need the right answer.)</small>'}</p>`; return; }
+      btn.classList.add('dogru'); $$('.secenek', alan).forEach(x => x.disabled = true);
+      const k = puanHesap(deneme); oyun.puan = k + Math.max(0, 2 - oyun.yanlis); oyun.top = 3; oyun.deneme = deneme + 1;
+      $('.geriBildirim', alan).innerHTML = `<img src="../img/mino_selam.webp" alt=""><p>Correct! <b class="puanEtiket">+${puanYaz(k)} ${k === 1 ? 'point' : 'points'}</b></p><button type="button" class="dugme ana" data-son>See your score →</button>`;
       $('[data-son]', alan).onclick = () => oyunSonu(alan);
     });
     return;
@@ -107,7 +114,7 @@ function oyunSonu(alan) {
   const {o, sv, puan} = oyun, top = oyun.top || oyun.maddeler.length, oran = top ? puan / top : 0;
   const yeni = oran >= .6 && Journal.record('oyun-dolabi', 'task', `${o.tur}-${sv}`, `${o.ad} · ${SEVIYE[sv]}`);
   const diger = OYUNLAR[(OYUNLAR.indexOf(o) + 1) % OYUNLAR.length];
-  alan.innerHTML = `<div class="sonuc"><img src="../img/mino_selam.webp" alt=""><h2>${oran === 1 ? 'Perfect!' : oran >= .6 ? "You're doing really well!" : 'Shall we try again?'}</h2><p class="buyukSayi">${puan}<small>/${top}</small></p>
+  alan.innerHTML = `<div class="sonuc"><img src="../img/mino_selam.webp" alt=""><h2>${oran === 1 ? 'Perfect!' : oran >= .6 ? "You're doing really well!" : 'Shall we try again?'}</h2><p class="buyukSayi">${puanYaz(puan)}<small>/${top} points</small></p>${oyun.deneme && o.tur !== 'yol' ? `<p class="denemeNot">You answered ${top} ${top === 1 ? 'question' : 'questions'} in ${oyun.deneme} ${oyun.deneme === 1 ? 'try' : 'tries'}.</p>` : ''}
    <p>${yeni ? 'You earned 2 drops for this game, and your sapling grew.' : oran >= .6 ? 'You already got the drops for this game.' : 'Read the text slowly, one more time. Get most of them right and 2 drops are waiting for you.'}</p>
    <div class="dugmeler"><a class="dugme" href="#oyunlar">Game Cabinet</a><a class="dugme" href="#oyun/${diger.tur}">Play ${diger.ad}</a><button type="button" class="dugme ana" data-tekrar>Play again</button></div></div>`;
   $('[data-tekrar]', alan).onclick = () => oyunEkrani(o.tur);
