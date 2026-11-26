@@ -421,10 +421,10 @@ h1{font-size:clamp(28px,min(3vw,5.6vh),46px)}h2{font-size:clamp(19px,2.6vh,25px)
 .izDurak.final .izDugum{background:#f6e7c6;box-shadow:0 5px 0 #d2b780}.izDurak.final .ik{width:64%;height:64%}.izDurak.final.kilit .ik{filter:grayscale(.85);opacity:.7}.izDurak.final.bitti .izDugum{background:#ffd27a}
 a.izDugum[href]:active{transform:translateY(3px)}a.izDugum[href]:hover{filter:brightness(1.05)}
 .izTik{position:absolute;bottom:-2px;right:-3px;width:22px;height:22px;display:grid;place-items:center;border-radius:50%;background:#fff;color:#2f6e3c;border:2px solid #2f6e3c;font:800 12px var(--baslik);font-style:normal}
-.izEtiketDis{position:absolute;top:var(--y);transform:translateY(-50%);width:clamp(100px,19vw,170px);pointer-events:none;z-index:1}.izEtiketDis.dogu{left:2%}.izEtiketDis.bati{right:2%;text-align:right}
+.izEtiketDis{position:absolute;top:var(--y);transform:translateY(-50%);max-width:170px;pointer-events:none;z-index:1}.izEtiketDis.dogu{left:2%;width:calc(var(--x) - 10%)}.izEtiketDis.bati{right:2%;text-align:right;width:calc(100% - var(--x) - 10%)}
 .izEtiketDis strong,.izEtiketDis small{display:block}.izEtiketDis strong{font:700 clamp(13px,2vh,16px)/1.15 var(--baslik);color:var(--mor-k)}.izEtiketDis small{font-size:11px;color:var(--gri)}.izEtiketDis.kilit{opacity:.6}
 .izBayrak{position:absolute;left:50%;bottom:calc(100% + 9px);transform:translateX(-50%);padding:2px 10px;border-radius:8px;background:var(--mor-k);color:#fff;font:700 12px var(--baslik);white-space:nowrap;pointer-events:none}.izBayrak:after{content:"";position:absolute;top:100%;left:calc(50% - 4px);border:4px solid transparent;border-top-color:var(--mor-k)}
-.izMino{position:absolute;top:50%;transform:translateY(-50%);height:calc(var(--dot)*1.25);pointer-events:none}.dogu .izMino{right:calc(100% + 8px)}.bati .izMino{left:calc(100% + 8px)}
+.izMino{position:absolute;top:50%;transform:translateY(-50%);height:calc(var(--dot)*1.25);pointer-events:none}.dogu .izMino{left:calc(100% + 8px)}.bati .izMino{right:calc(100% + 8px)}
 .izDevam{display:flex;align-items:center;justify-content:space-between;min-height:46px;padding:9px 18px;border-radius:14px;background:var(--mor-k);color:#fff;font:700 17px var(--baslik);box-shadow:0 4px 0 #2f1f44}.izDevam:hover{background:var(--mor)}
 @media(max-width:860px){.izArazi{height:520px;flex:none}.iz{flex:none}}
 @media(max-height:660px){.izIpucu{display:none}}

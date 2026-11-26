@@ -255,12 +255,13 @@ function patikaEkrani(id) {
     return `<div class="izDurak ${durum} ${yon}" style="--x:${x}%;--y:${y}%">
       <a class="izDugum" ${durum !== 'kilit' ? `href="${hedef(d)}"` : 'aria-disabled="true"'} aria-label="Stop ${d.no}: ${esc(d.ad)}, ${durum === 'kilit' ? 'locked' : durum === 'bitti' ? 'completed' : tamam + '/5 steps'}">${durum === 'kilit' ? '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>' : `<b>${d.no}</b>`}${durum === 'bitti' ? '<i class="izTik" aria-hidden="true">✓</i>' : ''}</a>
       ${k === sira ? `<span class="izBayrak">${tamam ? 'Continue' : 'Start'}</span><img class="izMino" src="../img/mino_selam.webp" alt="">` : ''}</div>
-    <span class="izEtiketDis ${durum} ${yon}" style="--y:${y}%"><strong>${esc(d.ad)}</strong><small>${durum === 'bitti' ? 'Completed' : durum === 'kilit' ? 'Locked' : tamam ? tamam + '/5 steps' : 'Pages ' + (d.bas + 1) + '–' + (d.son + 1)}</small></span>`; }).join('');
+    <span class="izEtiketDis ${durum} ${yon}" style="--y:${y}%;--x:${x}%"><strong>${esc(d.ad)}</strong><small>${durum === 'bitti' ? 'Completed' : durum === 'kilit' ? 'Locked' : tamam ? tamam + '/5 steps' : 'Pages ' + (d.bas + 1) + '–' + (d.son + 1)}</small></span>`; }).join('');
   const [sx, sy] = nokta(n - 1), sonraki = hepsi ? null : ds[sira];
   ekran.innerHTML = `<div class="bas"><div><h1>My Trail</h1></div><a class="izKitapSec" href="#kitaplar">Pick a book ↗</a></div>
   <section class="izKart"><div class="izBaslik"><div><p class="ust">Book trail · Grade ${aktifSinif()}</p><h2>${esc(b.ad)}</h2><p class="izIpucu">At every stop, first predict, then read, then play and write.</p></div><span class="izSkor" aria-label="${biten} ${cogul(biten, 'stop')} completed">${biten}/${ds.length}</span></div>
    <div class="izArazi"><svg class="izYol" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="${yol}"/></svg>${duraklarHtml}
-    <div class="izDurak final ${hepsi ? 'bitti' : 'kilit'} ${sx > 50 ? 'bati' : 'dogu'}" style="--x:${sx}%;--y:${sy}%"><a class="izDugum" ${hepsi ? `href="#bitti/${b.id}"` : 'aria-disabled="true"'} aria-label="Treasure chest">${ikon('sandik')}</a><span class="izEtiket"><strong>Treasure chest</strong><small>${hepsi ? 'Unlocked!' : 'When all stops are done'}</small></span></div></div>
+    <div class="izDurak final ${hepsi ? 'bitti' : 'kilit'} ${sx > 50 ? 'bati' : 'dogu'}" style="--x:${sx}%;--y:${sy}%"><a class="izDugum" ${hepsi ? `href="#bitti/${b.id}"` : 'aria-disabled="true"'} aria-label="Treasure chest">${ikon('sandik')}</a></div>
+    <span class="izEtiketDis ${hepsi ? 'bitti' : 'kilit'} ${sx > 50 ? 'bati' : 'dogu'}" style="--y:${sy}%;--x:${sx}%"><strong>Treasure chest</strong><small>${hepsi ? 'Unlocked!' : 'When all stops are done'}</small></span></div>
    <a class="izDevam" href="${hepsi ? `#bitti/${b.id}` : hedef(sonraki)}"><span>${hepsi ? 'Trail complete! Open the chest' : sonraki.adim.some(Boolean) ? `Pick up where you left off at stop ${sonraki.no}` : sira ? `Start stop ${sonraki.no}` : 'Start the first stop'}</span><b aria-hidden="true">→</b></a></section>`;
 }
 
